@@ -1,10 +1,10 @@
-.PHONY: up down reload upFrontend upBackend fclean db build fclean
+.PHONY: up down reload upFrontend upBackend fclean db build test build0 build1 build2
 
 # Levantar entorno docker
 up:
 	docker-compose down --volumes --remove-orphans || true
 	docker-compose up -d
-	cd backend && node index.js &
+	cd backend && node index.js & echo $$! > ../backend.pid
 
 # Levantar entorno docker
 upFrontend:
@@ -21,14 +21,13 @@ down:
 	@echo "🛑 Deteniendo contenedores Docker..."
 	@docker-compose down
 
-	@echo "🛑 Apagando backend en segundo plano..."
-	@if [ -f backend.pid ]; then \
-		pid=$$(cat backend.pid); \
-		echo "   - Terminando proceso backend PID $$pid"; \
-		kill $$pid 2>/dev/null || true; \
-		rm -f backend.pid; \
+	@echo "🛑 Buscando backend ejecutado fuera de Docker..."
+	@pids=$$(pgrep -af "index.js" | awk '{print $$1}'); \
+	if [ -n "$$pids" ]; then \
+		echo "   Matando procesos backend: $$pids"; \
+		kill $$pids 2>/dev/null || true; \
 	else \
-		echo "   - No hay backend.pid, no hay backend en segundo plano."; \
+		echo "   No hay backend externo en ejecución."; \
 	fi
 
 	@echo "✨ Entorno detenido completamente."
@@ -37,6 +36,35 @@ down:
 # Reiniciar
 reload: down up
 
+# Probar entorno
+test:
+	@echo "🧪 Ejecutando test del entorno..."
+
+	@echo "\n🔍 Probando backend (http://localhost:3000/ping)..."
+	@response_backend=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ping); \
+	if [ "$$response_backend" = "200" ]; then \
+		echo "   ✔ Backend OK — responde correctamente"; \
+		echo ""; \
+		echo "🌐 Puedes probar el backend aquí:"; \
+		echo "   👉 http://127.0.0.1:3000/ping"; \
+	else \
+		echo "   ❌ Backend NO responde"; \
+	fi
+
+	@echo "\n🔍 Probando frontend (http://localhost:8080)..."
+	@response_frontend=$$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080); \
+	if [ "$$response_frontend" = "200" ] || [ "$$response_frontend" = "304" ]; then \
+		echo "   ✔ Frontend OK — responde correctamente"; \
+		echo ""; \
+		echo "🌐 Puedes abrir el frontend aquí:"; \
+		echo "   👉 http://127.0.0.1:8080"; \
+	else \
+		echo "   ❌ Frontend NO responde"; \
+	fi
+	@echo ""
+
+
+# Limpiar todo
 fclean:
 	@echo "🧹 Limpiando entorno del frontend..."
 	rm -rf frontend
@@ -53,6 +81,8 @@ fclean:
 
 	@echo "✅ Limpieza completa."
 
+
+# Acceder a la base de datos SQLite
 db:
 	@echo "📘 Tutorial de SQLite:"
 	@echo "  • .tables           -> muestra todas las tablas"
@@ -256,17 +286,17 @@ build2:
 	@echo "📦 Inicializando npm en backend (ESM activado)..."
 	@cd backend && npm init -y >/dev/null 2>&1
 
-	@echo "🔧 Corrigiendo package.json a ES Modules..."
+	@echo "🔧 Configurando package.json como ES Modules..."
 	@cd backend && sed -i 's/"type": "commonjs"/"type": "module"/' package.json
 
-	@echo "🔧 Instalando build-essential y dependencias nativas..."
-	@sudo apt install -y build-essential python3 python3-dev libsqlite3-dev >/dev/null 2>&1
+	@echo "🔧 Instalando dependencias nativas requeridas..."
+	@sudo apt install -y build-essential python3-dev libsqlite3-dev >/dev/null 2>&1
 
 	@echo "📦 Instalando dependencias del backend (Express + SQLite + JWT + Bcrypt)..."
 	@cd backend && npm install \
-		express axios fs-extra cors better-sqlite3 jsonwebtoken bcryptjs dotenv
+		express axios fs-extra cors better-sqlite3 jsonwebtoken bcryptjs dotenv >/dev/null 2>&1
 
-	@echo "📄 Generando index.js básico para backend (SQLite opcional)..."
+	@echo "📄 Generando index.js básico para backend (con salto de línea en /ping)..."
 	@cd backend && \
 		echo "import express from 'express';" > index.js && \
 		echo "import cors from 'cors';" >> index.js && \
@@ -288,10 +318,12 @@ build2:
 		echo "}" >> index.js && \
 		echo "" >> index.js && \
 		echo "app.get('/ping', (req, res) => {" >> index.js && \
+		echo "  console.log(''); // salto de línea en terminal" >> index.js && \
+		echo "  console.log('Petición recibida en /ping');" >> index.js && \
 		echo "  res.json({ message: 'Backend funcionando 🎉' });" >> index.js && \
 		echo "});" >> index.js && \
 		echo "" >> index.js && \
-		echo "const PORT = process.env.BACKEND_PORT || 3000;" >> index.js && \
+		echo "const PORT = process.env.BACKEND_PORT;" >> index.js && \
 		echo "app.listen(PORT, () => {" >> index.js && \
 		echo "  console.log('Backend escuchando en puerto ' + PORT);" >> index.js && \
 		echo "});" >> index.js
@@ -350,4 +382,4 @@ build2:
 	@sed -i 's/8080/$${FRONTEND_PORT}/g' docker-compose.yml
 	@sed -i 's/3000/$${BACKEND_PORT}/g' docker-compose.yml
 
-	@echo "🎉 Backend listo"
+	@echo "🎉 Backend listo (con salto de línea en /ping)"

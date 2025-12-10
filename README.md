@@ -62,7 +62,6 @@ make build
 make up
 
 Esto hace:
-
 - Detiene contenedores previos  
 - Levanta `frontend` y `backend` con Docker  
 - Lanza el backend en segundo plano (modo desarrollo fuera del contenedor)
@@ -84,10 +83,7 @@ make upBackend
 ### ⏹️ **Detener todo**
 make down
 
-
-
 Hace:
-
 - `docker-compose down`
 - Apaga el backend en segundo plano si existe
 
@@ -102,7 +98,6 @@ make reload
 ### 🗑️ **Eliminar todo por completo**
 make fclean
 
-
 Esto borra:
 - frontend/
 - backend/
@@ -116,8 +111,16 @@ Esto borra:
 Puedes listar y consultar la base de datos con:
 make db
 
-
 Luego abre una consola interactiva de SQLite.
+
+
+---
+
+# 🧪 Testing del entorno
+make test
+
+Devuelve el estado tanto del frontend como del backend y te permite
+probar si funcionan directamente
 
 ---
 
@@ -150,9 +153,7 @@ Incluye:
 ### **3️⃣ build2 — Crear backend, instalar dependencias, generar Dockerfile**
 make build2
 
-
 Instala:
-
 - Express  
 - SQLite (better-sqlite3)  
 - JWT  
@@ -160,24 +161,7 @@ Instala:
 - dotenv  
 
 Genera:
-
 - backend/index.js funcional  
 - Dockerfile  
 - docker-compose.yml completo  
 
----
-
-# 🧪 Comprobación rápida
-
-Ejecuta:
-
-Debe devolver:
-
-```json
-{ "message": "Backend funcionando 🎉" }
-```
-
-Y el frontend estará en:
-```json
-http://localhost:8080
-```
